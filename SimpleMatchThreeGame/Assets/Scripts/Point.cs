@@ -31,6 +31,21 @@ public class Point
         return new Vector2(X, Y);
     }
 
+    public override bool Equals(object obj)
+    {
+        Point point = (Point)obj;
+
+        return Equals(point);
+    }
+
+    public override int GetHashCode()
+    {
+        int ix = (int)((X + 2f) / 0.2f);
+        int iy = (int)((Y + 2f) / 0.2f);
+
+        return (int)((ix * 73856093) ^ (iy * 19349663)) % 200;
+    }
+
     public bool Equals(Point InPoint)
     {
         return X == InPoint.X && Y == InPoint.Y;
