@@ -2,8 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
-public class NodePiece : MonoBehaviour
+public class NodePiece : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
 {
     // Node 정보에 대한 처리를 하는 함수를 통합해야 할 듯, Match3의 Node와 합쳐져 있다는 것 자체가 문제
     public EShapeType ShapeType;
@@ -14,6 +15,8 @@ public class NodePiece : MonoBehaviour
 
     [HideInInspector]
     public RectTransform Rect;
+
+    bool Updating;
 
     Image Img;
 
@@ -44,5 +47,24 @@ public class NodePiece : MonoBehaviour
     void UpdateName()
     {
         transform.name = "Node [" + Index.X + ", " + Index.Y + "]";
+    }
+
+    public bool UpdatePiece()
+    {
+        return true; 
+        // return false if it is not moving ... 
+    }
+
+    public void OnPointerDown(PointerEventData eventData)
+    {
+        if(Updating)
+        {
+            return;
+        }
+    }
+
+    public void OnPointerUp(PointerEventData eventData)
+    {
+
     }
 }
