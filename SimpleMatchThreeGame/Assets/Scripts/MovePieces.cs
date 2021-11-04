@@ -89,7 +89,7 @@ public class MovePieces : MonoBehaviour
         {
             if (NewIndex.Equals(Moving.index) == false)
             {
-                Game.FlipPieces(Moving.index, NewIndex);
+                Game.FlipPieces(Moving.index, NewIndex, true);
             }
             else
             {
