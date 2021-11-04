@@ -19,17 +19,19 @@ public class Match3 : MonoBehaviour
     
     // 이것도 타입 맵으로 정의할 수 있나?
     [Header("UI Elements")]
-    public Sprite[] Pieces;
+    public Sprite[] pieces;
 
-    public RectTransform GameBoard;
+    public RectTransform gameBoard;
 
     [Header("Prefabs")]
-    public GameObject NodePiece;
+    public GameObject nodePiece;
 
     private const int width = 9;
     private const int height = 14;
 
     Node[,] board;
+
+    List<NodePiece> update;
 
     System.Random random;
 
@@ -39,11 +41,23 @@ public class Match3 : MonoBehaviour
         StartGame();
     }
 
+    void Update()
+    {
+        foreach (NodePiece nodePiece in update.ToArray())
+        {
+            if (nodePiece.UpdatePiece() == false)
+            {
+                update.Remove(nodePiece);
+            }
+        }
+    }
+
     void StartGame()
     {
         string seed = GetRandomSeed();
 
         random = new System.Random(seed.GetHashCode());
+        update = new List<NodePiece>();
 
         // Board class를 만든 후 해당 메서드들을 분할하는 것도 좋을 듯?
         InitializeBoard();
@@ -110,19 +124,60 @@ public class Match3 : MonoBehaviour
         {
             for (int y = 0; y < height; y++)
             {
-                EShapeType shapeType = board[x, y].ShapeType;
+                EShapeType shapeType = board[x, y].shapeType;
 
-                if(shapeType > EShapeType.None)
+                if (shapeType > EShapeType.None)
                 {
-                    GameObject obj = Instantiate(NodePiece, GameBoard);
+                    Node node = GetNodeAt(new Point(x, y));
 
-                    NodePiece node = obj.GetComponent<NodePiece>();
+                    GameObject obj = Instantiate(nodePiece, gameBoard);
+
+                    NodePiece piece = obj.GetComponent<NodePiece>();
                     RectTransform rect = obj.GetComponent<RectTransform>();
 
-                    rect.anchoredPosition = new Vector2(32 + (64 * x), -32 - (64 * y));
-                    node.Init(shapeType, new Point(x, y), Pieces[(int)shapeType - 1]);
+                    rect.anchoredPosition = GetPosFrom(new Point(x, y));
+                    piece.Init(shapeType, new Point(x, y), pieces[(int)shapeType - 1]);
+                    node.SetPiece(piece);
                 }
             }
+        }
+    }
+
+    public void ResetPiece(NodePiece InPiece)
+    {
+        InPiece.ResetPos();
+        InPiece.flipped = null;
+
+        update.Add(InPiece);
+    }
+
+    public void FlipPieces(Point InA, Point InB)
+    {
+        if (GetTypeAt(InA) <= EShapeType.None)
+        {
+            return;
+        }
+
+        Node nodeA = GetNodeAt(InA);
+        NodePiece pieceA = nodeA.GetNodePiece();
+
+        if (GetTypeAt(InB) > EShapeType.None)
+        {
+            Node nodeB = GetNodeAt(InB);
+            NodePiece pieceB = nodeB.GetNodePiece();
+
+            nodeA.SetPiece(pieceB);
+            nodeB.SetPiece(pieceA);
+
+            pieceA.flipped = pieceB;
+            pieceB.flipped = pieceA;
+
+            update.Add(pieceA);
+            update.Add(pieceB);
+        }
+        else
+        {
+            ResetPiece(pieceA);
         }
     }
 
@@ -157,7 +212,7 @@ public class Match3 : MonoBehaviour
 
             for(int i = 1; i < 3; i++)
             {
-                Point check = Point.Add(InPoint, Point.Mul(InPoint, i));
+                Point check = Point.Add(InPoint, Point.Mult(InPoint, i));
 
                 if(GetTypeAt(check) == shapeType)
                 {
@@ -247,32 +302,32 @@ public class Match3 : MonoBehaviour
 
     EShapeType FillPiece()
     {
-        return (EShapeType) (random.Next(0, 100) * (Pieces.Length / 100) + 1);
+        return (EShapeType) (random.Next(0, 100) * (pieces.Length / 100) + 1);
     }
 
     EShapeType GetTypeAt(Point InPoint)
     {
         if(
-            InPoint.X < 0 || InPoint.X >= width || 
-            InPoint.Y < 0 || InPoint.Y >= height
+            InPoint.x < 0 || InPoint.x >= width || 
+            InPoint.y < 0 || InPoint.y >= height
             )
         {
             return EShapeType.None;
         }
 
-        return board[InPoint.X, InPoint.Y].ShapeType;
+        return board[InPoint.x, InPoint.y].shapeType;
     }
 
     void SetTypeAt(Point InPoint, EShapeType InShapeType)
     {
-        board[InPoint.X, InPoint.Y].ShapeType = InShapeType;
+        board[InPoint.x, InPoint.y].shapeType = InShapeType;
     }
 
     EShapeType GetValue(ref List<EShapeType> InRemove)
     {
         List<EShapeType> available = new List<EShapeType>();
 
-        for(int i = 0; i < Pieces.Length; i++)
+        for(int i = 0; i < pieces.Length; i++)
         {
             available.Add((EShapeType)(i + 1));
         }
@@ -290,10 +345,9 @@ public class Match3 : MonoBehaviour
         return available[random.Next(0, available.Count)];
     }
 
-    // Update is called once per frame
-    void Update()
+    Node GetNodeAt(Point InPoint)
     {
-        
+        return board[InPoint.x, InPoint.y];
     }
 
     string GetRandomSeed()
@@ -308,17 +362,45 @@ public class Match3 : MonoBehaviour
 
         return seed;
     }
+
+    public Vector2 GetPosFrom(Point InPoint)
+    {
+        return new Vector2(32 + (64 * InPoint.x), -32 - (64 * InPoint.y));
+    }
 }
 
 [System.Serializable]
 public class Node
 {
-    public EShapeType ShapeType;
-    public Point Index;
+    public EShapeType shapeType;
+    public Point index;
+    public NodePiece piece;
 
     public Node(EShapeType InShapeType, Point InIndex)
     {
-        ShapeType = InShapeType;
-        Index = InIndex;
+        shapeType = InShapeType;
+        index = InIndex;
+    }
+
+    public void SetPiece(NodePiece InNodePiece)
+    {
+        piece = InNodePiece;
+        shapeType = (piece == null) ? EShapeType.Hole : piece.shapeType;
+
+        if (piece == null)
+        {
+            return;
+        }
+        else
+        {
+            piece.SetIndex(index);
+        }
+    }
+
+    public NodePiece GetNodePiece()
+    {
+        return piece;
     }
 }
+
+

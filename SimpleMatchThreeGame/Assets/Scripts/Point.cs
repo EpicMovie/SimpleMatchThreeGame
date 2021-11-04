@@ -5,30 +5,30 @@ using UnityEngine;
 [System.Serializable]
 public class Point 
 {
-    public int X;
-    public int Y;
+    public int x;
+    public int y;
 
     public Point(int InX, int InY)
     {
-        X = InX;
-        Y = InY;
+        x = InX;
+        y = InY;
     }
 
     public void Add(Point InPoint)
     {
-        X += InPoint.X;
-        Y += InPoint.Y;
+        x += InPoint.x;
+        y += InPoint.y;
     }
 
-    public void Mul(int InScale)
+    public void Mult(int InScale)
     {
-        X *= InScale;
-        Y *= InScale;
+        x *= InScale;
+        y *= InScale;
     }
 
     public Vector2 ToVector()
     {
-        return new Vector2(X, Y);
+        return new Vector2(x, y);
     }
 
     public override bool Equals(object obj)
@@ -40,15 +40,15 @@ public class Point
 
     public override int GetHashCode()
     {
-        int ix = (int)((X + 2f) / 0.2f);
-        int iy = (int)((Y + 2f) / 0.2f);
+        int ix = (int)((x + 2f) / 0.2f);
+        int iy = (int)((y + 2f) / 0.2f);
 
         return (int)((ix * 73856093) ^ (iy * 19349663)) % 200;
     }
 
     public bool Equals(Point InPoint)
     {
-        return X == InPoint.X && Y == InPoint.Y;
+        return x == InPoint.x && y == InPoint.y;
     }
 
     public static Point FromVector(Vector2 InVector)
@@ -63,17 +63,17 @@ public class Point
 
     public static Point Add(Point InPoint, Point InOther)
     {
-        return new Point(InPoint.X + InOther.X, InPoint.Y + InOther.Y);
+        return new Point(InPoint.x + InOther.x, InPoint.y + InOther.y);
     }
 
-    public static Point Mul(Point InPoint, int InScale)
+    public static Point Mult(Point InPoint, int InScale)
     {
-        return new Point(InPoint.X * InScale, InPoint.Y * InScale);
+        return new Point(InPoint.x * InScale, InPoint.y * InScale);
     }
 
     public static Point Clone(Point InPoint)
     {
-        return new Point(InPoint.X, InPoint.Y);
+        return new Point(InPoint.x, InPoint.y);
     }
 
     public static Point Zero
