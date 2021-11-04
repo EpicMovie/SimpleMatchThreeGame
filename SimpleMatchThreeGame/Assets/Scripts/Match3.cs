@@ -185,7 +185,7 @@ public class Match3 : MonoBehaviour
 
                 EShapeType shapeType = GetTypeAt(p);
 
-                if(shapeType <= EShapeType.None)
+                if (shapeType <= EShapeType.None)
                 {
                     continue;
                 }
@@ -197,7 +197,7 @@ public class Match3 : MonoBehaviour
                     {
                         shapeType = GetTypeAt(p);
 
-                        if(!remove.Contains(shapeType))
+                        if (remove.Contains(shapeType) == false)
                         {
                             remove.Add(shapeType);
                         }
@@ -229,6 +229,27 @@ public class Match3 : MonoBehaviour
                     rect.anchoredPosition = GetPosFrom(new Point(x, y));
                     piece.Init(shapeType, new Point(x, y), pieces[(int)shapeType - 1]);
                     node.SetPiece(piece);
+                }
+            }
+        }
+    }
+
+    void ApplyGravityToBoard()
+    {
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = (height - 1); y >= 0; y--)
+            {
+                Point point = new Point(x, y);
+                Node node = GetNodeAt(point);
+                EShapeType shapeType = GetTypeAt(point);
+
+                if (shapeType == EShapeType.Hole)
+                { 
+                    for (int ny = (y - 1); ny >= -1; ny--)
+                    {
+                        // Point next = new Point
+                    }
                 }
             }
         }
