@@ -28,13 +28,16 @@ public class Match3 : MonoBehaviour
 
     private const int width = 9;
     private const int height = 14;
+    int[] fills;
 
     Node[,] board;
 
     System.Random random;
 
-    List<NodePiece> update;
+    List<NodePiece> updatePieces;
     List<FlippedPieces> flippedPieces;
+
+    Queue<NodePiece> deadPieces;
 
     // Start is called before the first frame update
     void Start()
@@ -44,7 +47,7 @@ public class Match3 : MonoBehaviour
 
     void Update()
     {
-        foreach (NodePiece nodePiece in update.ToArray())
+        foreach (NodePiece nodePiece in updatePieces.ToArray())
         {
             if (nodePiece.UpdatePiece() == false)
             {
@@ -57,7 +60,10 @@ public class Match3 : MonoBehaviour
                 {
                     flippedConnected = IsConnected(flippedPiece.index, true);
                 }
-                
+
+                int x = (int)nodePiece.index.x;
+                fills[x] = Mathf.Clamp(fills[x] - 1, 0, width);
+
                 bool wasFlipped = flippedPiece != null;
 
                 if (wasFlipped)
@@ -74,42 +80,36 @@ public class Match3 : MonoBehaviour
                 }
                 else
                 {
-                    foreach (Point point in connected)
-                    {
-                        Node node = GetNodeAt(point);
-                        NodePiece piece = node.GetNodePiece();
-
-                        if (piece != null)
-                        {
-                            piece.gameObject.SetActive(false);
-                        }
-
-                        node.SetPiece(null);
-                    }
+                    DisablePieces(ref connected);
                 }
 
                 if (flippedConnected != null)
                 {
-                    if (flippedConnected.Count > 0)
-                    {
-                        foreach (Point point in flippedConnected)
-                        {
-                            Node node = GetNodeAt(point);
-                            NodePiece piece = node.GetNodePiece();
-
-                            if (piece != null)
-                            {
-                                piece.gameObject.SetActive(false);
-                            }
-
-                            node.SetPiece(null);
-                        }
-                    }
+                    DisablePieces(ref flippedConnected);
                 }
-                
+
+                ApplyGravityToBoard();
+
                 RemoveFlipped(nodePiece);
-                update.Remove(nodePiece);
+                updatePieces.Remove(nodePiece);
             }
+        }
+    }
+
+    void DisablePieces(ref List<Point> InConnected)
+    {
+        foreach (Point point in InConnected)
+        {
+            Node node = GetNodeAt(point);
+            NodePiece piece = node.GetNodePiece();
+
+            if (piece != null)
+            {
+                piece.gameObject.SetActive(false);
+            }
+
+            node.SetPiece(null);
+            deadPieces.Enqueue(piece);
         }
     }
 
@@ -146,9 +146,11 @@ public class Match3 : MonoBehaviour
     {
         string seed = GetRandomSeed();
 
+        fills = new int[width];
         random = new System.Random(seed.GetHashCode());
-        update = new List<NodePiece>();
+        updatePieces = new List<NodePiece>();
         flippedPieces = new List<FlippedPieces>();
+        deadPieces = new Queue<NodePiece>();
 
         // Board class를 만든 후 해당 메서드들을 분할하는 것도 좋을 듯?
         InitializeBoard();
@@ -168,9 +170,7 @@ public class Match3 : MonoBehaviour
                     EShapeType.Hole :
                     FillPiece();
 
-                board[x, y] = new Node(
-                    shapeType, new Point(x, y)
-                );
+                board[x, y] = new Node(shapeType, new Point(x, y));
             }
         }
     }
@@ -219,19 +219,40 @@ public class Match3 : MonoBehaviour
 
                 if (shapeType > EShapeType.None)
                 {
-                    Node node = GetNodeAt(new Point(x, y));
+                    Point point = new Point(x, y);
 
-                    GameObject obj = Instantiate(nodePiece, gameBoard);
+                    Node node = GetNodeAt(point);
 
-                    NodePiece piece = obj.GetComponent<NodePiece>();
-                    RectTransform rect = obj.GetComponent<RectTransform>();
+                    NodePiece piece = SpawnPiece(shapeType, point);
 
-                    rect.anchoredPosition = GetPosFrom(new Point(x, y));
-                    piece.Init(shapeType, new Point(x, y), pieces[(int)shapeType - 1]);
-                    node.SetPiece(piece);
+                    if (piece != null)
+                    {
+                        node.SetPiece(piece);
+                    }
+                    else
+                    {
+                        // Debug Message Error
+                    }
                 }
             }
         }
+    }
+
+    NodePiece SpawnPiece(EShapeType InShapeType, Point InPoint)
+    {
+        NodePiece returnVal = null;
+
+        GameObject obj = Instantiate(nodePiece, gameBoard);
+
+        returnVal = obj.GetComponent<NodePiece>();
+
+        RectTransform rect = obj.GetComponent<RectTransform>();
+
+        rect.anchoredPosition = GetPosFrom(InPoint);
+
+        returnVal.Init(InShapeType, InPoint, pieces[(int)InShapeType - 1]);
+
+        return returnVal;
     }
 
     void ApplyGravityToBoard()
@@ -244,11 +265,57 @@ public class Match3 : MonoBehaviour
                 Node node = GetNodeAt(point);
                 EShapeType shapeType = GetTypeAt(point);
 
+                // if it is not a hole, do nothing
                 if (shapeType == EShapeType.Hole)
                 { 
                     for (int ny = (y - 1); ny >= -1; ny--)
                     {
-                        // Point next = new Point
+                        Point next = new Point(x, ny);
+                        EShapeType nextType = GetTypeAt(next);
+
+                        if (nextType == EShapeType.None)
+                        {
+                            continue;
+                        }
+
+                        if (nextType != EShapeType.Hole)
+                        {
+                            Node nextNode = GetNodeAt(next);
+                            NodePiece nextPiece = nextNode.GetNodePiece();
+
+                            // Set the Hole
+                            node.SetPiece(nextPiece);
+                            updatePieces.Add(nextPiece);
+
+                            // Replace the hole
+                            nextNode.SetPiece(null);
+                        }
+                        else // Hit an end ...
+                        {
+                            // Fill in the hole
+                            EShapeType newShapeType = FillPiece();
+                            NodePiece newPiece = null;
+                            Point startPoint = new Point(x, -(fills[x] + 1));
+
+                            if (deadPieces.Count > 0)
+                            {
+                                newPiece = deadPieces.Dequeue();
+                                newPiece.gameObject.SetActive(true);
+                                newPiece.rect.anchoredPosition = GetPosFrom(startPoint);
+                                newPiece.Init(newShapeType, point, pieces[(int)newShapeType - 1]);
+                            }
+                            else
+                            {
+                                newPiece = SpawnPiece(newShapeType, startPoint);
+                            }
+
+                            Node hole = GetNodeAt(point);
+                            hole.SetPiece(newPiece);
+                            ResetPiece(newPiece);
+                            fills[x]++;
+                        }
+
+                        break;
                     }
                 }
             }
@@ -260,7 +327,7 @@ public class Match3 : MonoBehaviour
         InPiece.ResetPos();
         InPiece.flipped = null;
 
-        update.Add(InPiece);
+        updatePieces.Add(InPiece);
     }
 
     public void FlipPieces(Point InA, Point InB, bool InMain)
@@ -286,8 +353,8 @@ public class Match3 : MonoBehaviour
                 flippedPieces.Add(new FlippedPieces(pieceA, pieceB));
             }
             
-            update.Add(pieceA);
-            update.Add(pieceB);
+            updatePieces.Add(pieceA);
+            updatePieces.Add(pieceB);
         }
         else
         {
@@ -361,7 +428,7 @@ public class Match3 : MonoBehaviour
         }
         
         // Check 2 x 2 matching cases 
-        for(int i = 0; i < dirs.Length; i++)
+        for (int i = 0; i < dirs.Length; i++)
         {
             Point p1 = Point.Add(InPoint, dirs[i % dirs.Length]);
             Point p2 = Point.Add(p1, dirs[(i + 1) % dirs.Length]);
@@ -372,32 +439,27 @@ public class Match3 : MonoBehaviour
 
             bool isSameType = true;
 
-            foreach(Point check in checks)
+            foreach (Point check in checks)
             {
-                if(GetTypeAt(check) != shapeType)
+                if (GetTypeAt(check) != shapeType)
                 {
                     isSameType &= false;
                     break;
                 }
             }
 
-            if(isSameType)
+            if (isSameType)
             {
                 AddPoints(ref connected, new List<Point>(checks));
             }
         }
 
-        if(InMain)
+        if (InMain)
         {
             for (int i = 0; i < connected.Count; i++)
             {
                 AddPoints(ref connected, IsConnected(connected[i], false));
             }
-        }
-
-        if(connected.Count > 0)
-        {
-            connected.Add(InPoint);
         }
 
         return new List<Point>(connected);
@@ -416,15 +478,17 @@ public class Match3 : MonoBehaviour
 
     EShapeType FillPiece()
     {
-        return (EShapeType) (random.Next(0, 100) * (pieces.Length / 100) + 1);
+        return (EShapeType) (random.Next(0, 100) * (pieces.Length / 100f) + 1);
     }
 
     EShapeType GetTypeAt(Point InPoint)
     {
-        if(
-            InPoint.x < 0 || InPoint.x >= width || 
-            InPoint.y < 0 || InPoint.y >= height
-            )
+        if (InPoint.y == -1)
+        {
+            return EShapeType.Hole;
+        }
+
+        if (InPoint.x < 0 || InPoint.x >= width || InPoint.y < 0 || InPoint.y >= height)
         {
             return EShapeType.None;
         }
@@ -501,11 +565,7 @@ public class Node
         piece = InNodePiece;
         shapeType = (piece == null) ? EShapeType.Hole : piece.shapeType;
 
-        if (piece == null)
-        {
-            return;
-        }
-        else
+        if (piece != null)
         {
             piece.SetIndex(index);
         }
@@ -536,7 +596,7 @@ public class FlippedPieces
         {
             return pieceB;
         }
-        else if(InPiece == pieceB)
+        else if (InPiece == pieceB)
         {
             return pieceA;
         }

@@ -6,7 +6,6 @@ using UnityEngine.EventSystems;
 
 public class NodePiece : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
 {
-    // Node 정보에 대한 처리를 하는 함수를 통합해야 할 듯, Match3의 Node와 합쳐져 있다는 것 자체가 문제
     public EShapeType shapeType;
     public Point index;
 
@@ -31,7 +30,6 @@ public class NodePiece : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
 
         img = GetComponent<Image>();
         rect = GetComponent<RectTransform>();
-
 
         shapeType = InShapeType;
         img.sprite = InPiece;
